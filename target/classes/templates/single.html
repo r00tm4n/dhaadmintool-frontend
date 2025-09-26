@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Person Dashboard</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/darkly/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.1.8/datatables.min.css"/>
+  <style>
+    .section-card .card-header{background:#2a9d8f;color:#fff}
+    .portrait-box{min-height:260px;background:#111;border:1px solid #2b2b2b;border-radius:.5rem}
+    .fp-box{height:110px;background:#111;border:1px solid #2b2b2b;border-radius:.5rem}
+  </style>
+</head>
+<body>
+<div class="container py-3">
+  <!-- Search row -->
+  <form id="searchForm" class="row gy-2 gx-2 mb-3">
+    <div class="col-auto"><input id="idnInput" name="idnOrPcn" class="form-control" placeholder="ID / PCN / Form" required></div>
+    <div class="col-auto"><button class="btn btn-primary" type="submit">Search</button></div>
+  </form>
+
+  <!-- DEMOGRAPHIC -->
+  <div class="card section-card mb-3">
+    <div class="card-header fw-bold">DEMOGRAPHIC</div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table id="demoTable" class="table table-dark table-striped table-bordered m-0 align-middle">
+          <thead class="table-success">
+            <tr><th style="width:120px">Type</th><th>IDN / PCN</th><th style="width:180px">Form Number</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- BIOMETRIC INFORMATION -->
+  <div class="card section-card mb-3">
+    <div class="card-header fw-bold">BIOMETRIC INFORMATION</div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-12 col-md-3">
+          <div class="portrait-box d-flex align-items-center justify-content-center">
+            <img id="portraitImg" class="img-fluid rounded" alt="Portrait">
+            <span id="portraitPlaceholder" class="text-muted">Portrait</span>
+          </div>
+        </div>
+        <div class="col-12 col-md-9">
+          <div class="row g-2" id="fingerGrid">
+            <!-- 10 fingerprint tiles will be injected here -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WORKFLOW INFORMATION -->
+  <div class="card section-card mb-3">
+    <div class="card-header fw-bold">WORKFLOW INFORMATION</div>
+    <div class="card-body">
+      <table id="workflowTable" class="table table-dark table-striped table-bordered w-100">
+        <thead class="table-success"><tr><th>Title 1</th><th>Title 2</th><th>Title 3</th></tr></thead>
+      </table>
+    </div>
+  </div>
+
+  <!-- ESB Transaction Logs (Latest) -->
+  <div class="card section-card mb-3">
+    <div class="card-header fw-bold">ESB Transaction Logs (Latest)</div>
+    <div class="card-body">
+      <table id="esbTable" class="table table-dark table-striped table-bordered w-100">
+        <thead class="table-success">
+          <tr>
+            <th>TransactionID</th><th>CandidateID</th><th>AppID</th>
+            <th>ReqClient</th><th>Provider</th><th>RespCode</th><th>RespMessage</th>
+            <th>Start</th><th>End</th>
+          </tr>
+        </thead>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/v/bs5/dt-2.1.8/datatables.min.js"></script>
+<script>
+let workflowDT=null, esbDT=null;
+
+function initDataTables(){
+  // Workflow DataTable (client-side, fed from the person JSON)
+  if(!workflowDT){
+    workflowDT = $('#workflowTable').DataTable({
+      data: [], pageLength: 10, searching: true, lengthMenu: [10,25,50,100],
+      columns: [{data:'title1'},{data:'title2'},{data:'title3'}],
+      language:{emptyTable:'No workflow rows'}
+    });
+  }
+  // ESB DataTable (AJAX POST to /api/esb with idnOrPcn)
+  if(!esbDT){
+    esbDT = $('#esbTable').DataTable({
+      ajax: {
+        url: '/api/esb',
+        type: 'POST',
+        contentType: 'application/json',
+        data: function(d){
+          return JSON.stringify({idnOrPcn: $('#idnInput').val().trim()});
+        },
+        dataSrc: '' // ESB endpoint returns an array, not wrapped
+      },
+      pageLength: 10, searching: true, lengthMenu: [10,25,50,100],
+      columns: [
+        {data:'transactionID'},{data:'candidateID'},{data:'appID'},
+        {data:'reqClient'},{data:'providerName'},{data:'respCode'},{data:'respMessage'},
+        {data:'globalStartTime'},{data:'globalEndTime'}
+      ]
+    });
+  } else {
+    esbDT.ajax.reload();
+  }
+}
+
+function renderPerson(p){
+  // Demographic rows
+  const $tbody = $('#demoTable tbody').empty();
+  if(p.demo && p.demo.length){
+    p.demo.forEach(r=>{
+      $tbody.append(`<tr><td>${r.type||''}</td><td>${r.idnOrPcn||''}</td><td>${r.formNumber||''}</td></tr>`);
+    });
+  } else {
+    $tbody.append('<tr><td colspan="3" class="text-center text-muted">No demographic rows (demo tag missing)</td></tr>');
+  }
+
+  // Portrait
+  if(p.portraitBase64){
+    $('#portraitImg').attr('src','data:image/png;base64,'+p.portraitBase64).show();
+    $('#portraitPlaceholder').hide();
+  } else {
+    $('#portraitImg').hide();
+    $('#portraitPlaceholder').show();
+  }
+
+  // Fingerprints (fill up to 10)
+  const grid = $('#fingerGrid').empty();
+  const fps = (p.fingerprintsBase64||[]);
+  for(let i=0;i<10;i++){
+    const b64 = fps[i];
+    const html = `<div class="col-6 col-lg-2"><div class="fp-box d-flex align-items-center justify-content-center">
+      ${b64 ? `<img src="data:image/png;base64,${b64}" class="img-fluid">`
+            : `<span class="text-muted">fingerprint f${i+1}</span>`}
+    </div></div>`;
+    grid.append(html);
+  }
+
+  // Workflow
+  const wf = (p.workflow||[]);
+  workflowDT.clear().rows.add(wf).draw();
+}
+
+$('#searchForm').on('submit', function(e){
+  e.preventDefault();
+  const id = $('#idnInput').val().trim();
+  if(!id) return;
+  // Fetch person (POST /api/person) then render
+  $.ajax({
+    url:'/api/person', method:'POST', contentType:'application/json',
+    data: JSON.stringify({idnOrPcn: id}),
+    success: function(p){ renderPerson(p); initDataTables(); },
+    error: function(){ alert('Failed to fetch person'); }
+  });
+  // Reload ESB table (init or refresh)
+  initDataTables();
+});
+</script>
+</body>
+</html>

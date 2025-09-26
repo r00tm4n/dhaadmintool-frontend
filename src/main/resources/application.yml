@@ -1,0 +1,12 @@
+server:
+  port: 8081
+
+apis:
+  # External endpoints you provided
+  personUrl: "http://localhost:8080/ads/getperson/"
+  esbUrl: "http://localhost:8080/esb/byidn/"
+
+#Fix error org.springframework.core.io.buffer.DataBufferLimitException: Exceeded limit on max bytes to buffer : 262144
+spring:
+  codec:
+    max-in-memory-size: 52428800 # 50 MB
