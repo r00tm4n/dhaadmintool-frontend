@@ -109,11 +109,18 @@ function initDataTables(){
         dataSrc: '' // ESB endpoint returns an array, not wrapped
       },
       pageLength: 10, searching: true, lengthMenu: [10,25,50,100],
-      columns: [
-        {data:'transactionID'},{data:'candidateID'},{data:'appID'},
-        {data:'reqClient'},{data:'providerName'},{data:'respCode'},{data:'respMessage'},
-        {data:'globalStartTime'},{data:'globalEndTime'}
-      ]
+	  columns: [
+	    {data:'TransactionID'},
+	    {data:'CandidateID'},
+	    {data:'AppID'},
+	    {data:'ReqClient'},
+	    {data:'ProviderName'},
+	    {data:'RespCode'},
+	    {data:'RespMessage'},
+	    {data:'GlobalStartTime'},
+	    {data:'GlobalEndTime'}
+	  ]
+
     });
   } else {
     esbDT.ajax.reload();
@@ -140,16 +147,24 @@ function renderPerson(p){
     $('#portraitPlaceholder').show();
   }
 
-  // Fingerprints (fill up to 10)
+  // Fingerprints: enforce 5 per row
+  const fps = (p.fingerprintsBase64 || []);
   const grid = $('#fingerGrid').empty();
-  const fps = (p.fingerprintsBase64||[]);
-  for(let i=0;i<10;i++){
+  for (let i = 0; i < 10; i++) {
+    if (i % 5 === 0) {
+      grid.append('<div class="row g-2 fingerprint-row"></div>');
+    }
+    const row = grid.find('.fingerprint-row').last();
     const b64 = fps[i];
-    const html = `<div class="col-6 col-lg-2"><div class="fp-box d-flex align-items-center justify-content-center">
-      ${b64 ? `<img src="data:image/png;base64,${b64}" class="img-fluid">`
+    const html = `
+      <div class="col-6 col-md-2 d-flex">
+        <div class="fp-box flex-fill d-flex align-items-center justify-content-center">
+          ${b64 
+            ? `<img src="data:image/png;base64,${b64}" class="img-fluid">`
             : `<span class="text-muted">fingerprint f${i+1}</span>`}
-    </div></div>`;
-    grid.append(html);
+        </div>
+      </div>`;
+    row.append(html);
   }
 
   // Workflow
