@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Person Dashboard</title>
+  <title>DHA Admin Tool - Mr Romantic</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/darkly/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.1.8/datatables.min.css"/>
   <style>
@@ -26,9 +26,25 @@
     <div class="card-body p-0">
       <div class="table-responsive">
         <table id="demoTable" class="table table-dark table-striped table-bordered m-0 align-middle">
-          <thead class="table-success">
+          <!--thead class="table-success">
             <tr><th style="width:120px">Type</th><th>IDN / PCN</th><th style="width:180px">Form Number</th></tr>
-          </thead>
+          </thead-->
+		  <thead class="table-success">
+		    <tr>
+		      <th>Type</th>
+		      <th>IDN / PCN</th>
+		      <th>TCN</th>
+		      <th>Registration ID</th>
+		      <th>Batch Number</th>
+		      <th>Form Number</th>
+		      <th>Inactive</th>
+		      <th>Blocked</th>
+		      <th>Dead</th>
+		      <th>Date Created</th>
+		      <th>Person Create Date</th>
+		      <th>Date Last Modified</th>
+		    </tr>
+		  </thead>
           <tbody></tbody>
         </table>
       </div>
@@ -56,14 +72,14 @@
   </div>
 
   <!-- WORKFLOW INFORMATION -->
-  <div class="card section-card mb-3">
+  <!--div class="card section-card mb-3">
     <div class="card-header fw-bold">WORKFLOW INFORMATION</div>
     <div class="card-body">
       <table id="workflowTable" class="table table-dark table-striped table-bordered w-100">
         <thead class="table-success"><tr><th>Title 1</th><th>Title 2</th><th>Title 3</th></tr></thead>
       </table>
     </div>
-  </div>
+  </div-->
 
   <!-- ESB Transaction Logs (Latest) -->
   <div class="card section-card mb-3">
@@ -96,6 +112,7 @@ function initDataTables(){
       language:{emptyTable:'No workflow rows'}
     });
   }
+
   // ESB DataTable (AJAX POST to /api/esb with idnOrPcn)
   if(!esbDT){
     esbDT = $('#esbTable').DataTable({
@@ -109,34 +126,72 @@ function initDataTables(){
         dataSrc: '' // ESB endpoint returns an array, not wrapped
       },
       pageLength: 10, searching: true, lengthMenu: [10,25,50,100],
-	  columns: [
-	    {data:'TransactionID'},
-	    {data:'CandidateID'},
-	    {data:'AppID'},
-	    {data:'ReqClient'},
-	    {data:'ProviderName'},
-	    {data:'RespCode'},
-	    {data:'RespMessage'},
-	    {data:'GlobalStartTime'},
-	    {data:'GlobalEndTime'}
-	  ]
-
+      columns: [
+        {data:'TransactionID'},
+        {data:'CandidateID'},
+        {data:'AppID'},
+        {data:'ReqClient'},
+        {data:'ProviderName'},
+        {data:'RespCode'},
+        {data:'RespMessage'},
+        {
+          data:'GlobalStartTime',
+          render: function(data){
+            if(!data) return '';
+            // From "2025-09-18T22:31:41.777+00:00" → "2025-09-18 22:31:41"
+            return data.replace('T',' ').substring(0,19);
+          }
+        },
+        {
+          data:'GlobalEndTime',
+          render: function(data){
+            if(!data) return '';
+            return data.replace('T',' ').substring(0,19);
+          }
+        }
+      ]
     });
   } else {
     esbDT.ajax.reload();
   }
 }
 
+
 function renderPerson(p){
   // Demographic rows
-  const $tbody = $('#demoTable tbody').empty();
+  /**const $tbody = $('#demoTable tbody').empty();
   if(p.demo && p.demo.length){
     p.demo.forEach(r=>{
       $tbody.append(`<tr><td>${r.type||''}</td><td>${r.idnOrPcn||''}</td><td>${r.formNumber||''}</td></tr>`);
     });
   } else {
     $tbody.append('<tr><td colspan="3" class="text-center text-muted">No demographic rows (demo tag missing)</td></tr>');
+  }*/
+  // Demographic rows
+  const $tbody = $('#demoTable tbody').empty();
+  if (p.demo && p.demo.length) {
+    p.demo.forEach(r => {
+      $tbody.append(`
+        <tr>
+          <td>${r.type || ''}</td>
+          <td>${r.idnOrPcn || ''}</td>
+          <td>${r.tcn || ''}</td>
+          <td>${r.registrationId || ''}</td>
+          <td>${r.batchNumber || ''}</td>
+          <td>${r.formNumber || ''}</td>
+          <td>${r.inactive || ''}</td>
+          <td>${r.blocked || ''}</td>
+          <td>${r.dead || ''}</td>
+          <td>${r.dateCreated || ''}</td>
+          <td>${r.personCreateDate || ''}</td>
+          <td>${r.dateLastModified || ''}</td>
+        </tr>
+      `);
+    });
+  } else {
+    $tbody.append('<tr><td colspan="12" class="text-center text-muted">No demographic rows</td></tr>');
   }
+
 
   // Portrait
   if(p.portraitBase64){
