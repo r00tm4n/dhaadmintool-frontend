@@ -1,4 +1,4 @@
-package com.example.spa.model;
+package idemia.ci.msa.dha.dhaadmintool.spa.model;
 public class WorkflowRow {
   private String title1;
   private String title2;

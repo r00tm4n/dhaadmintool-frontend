@@ -1,4 +1,4 @@
-package com.example.spa.model;
+package idemia.ci.msa.dha.dhaadmintool.spa.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

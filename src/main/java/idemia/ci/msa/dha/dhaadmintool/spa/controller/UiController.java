@@ -1,10 +1,11 @@
-package com.example.spa.controller;
+package idemia.ci.msa.dha.dhaadmintool.spa.controller;
 
-import com.example.spa.model.PersonResponse;
-import com.example.spa.model.EsbRow;
-import com.example.spa.service.ExternalApiClient;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
+
+import idemia.ci.msa.dha.dhaadmintool.spa.model.EsbRow;
+import idemia.ci.msa.dha.dhaadmintool.spa.model.PersonResponse;
+import idemia.ci.msa.dha.dhaadmintool.spa.service.ExternalApiClient;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Flux;
 import java.util.Map;

@@ -1,12 +1,13 @@
-package com.example.spa.service;
+package idemia.ci.msa.dha.dhaadmintool.spa.service;
 
-import com.example.spa.model.PersonResponse;
-import com.example.spa.model.EsbRow;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
+
+import idemia.ci.msa.dha.dhaadmintool.spa.model.EsbRow;
+import idemia.ci.msa.dha.dhaadmintool.spa.model.PersonResponse;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Flux;
 
