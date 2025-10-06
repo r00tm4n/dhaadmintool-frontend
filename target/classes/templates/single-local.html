@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DHA Admin Tool - Mr Romantic</title>
+
+  <!-- Local CSS -->
+  <link rel="stylesheet" th:href="@{/css/bootstrap-darkly.min.css}">
+  <link rel="stylesheet" th:href="@{/css/dataTables.bootstrap5.min.css}"/>
+
+  <style>
+    .section-card .card-header { background:#2a9d8f; color:#fff }
+    .portrait-box { min-height:260px; background:#111; border:1px solid #2b2b2b; border-radius:.5rem }
+    .fp-box { height:110px; background:#111; border:1px solid #2b2b2b; border-radius:.5rem }
+  </style>
+</head>
+<body>
+<div class="container py-3">
+  <!-- Search row -->
+  <form id="searchForm" class="row gy-2 gx-2 mb-3">
+    <div class="col-auto">
+      <input id="idnInput" name="idnOrPcn" class="form-control" placeholder="ID / PCN / Form" required>
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-primary" type="submit">Search</button>
+    </div>
+  </form>
+
+  <!-- DEMOGRAPHIC -->
+  <div class="card section-card mb-3">
+    <div class="card-header fw-bold">DEMOGRAPHIC</div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table id="demoTable" class="table table-dark table-striped table-bordered m-0 align-middle">
+          <thead class="table-success">
+            <tr>
+              <th>Type</th>
+              <th>IDN / PCN</th>
+              <th>TCN</th>
+              <th>Registration ID</th>
+              <th>Batch Number</th>
+              <th>Form Number</th>
+              <th>Inactive</th>
+              <th>Blocked</th>
+              <th>Dead</th>
+              <th>Date Created</th>
+              <th>Person Create Date</th>
+              <th>Date Last Modified</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- BIOMETRIC INFORMATION -->
+  <div class="card section-card mb-3">
+    <div class="card-header fw-bold">BIOMETRIC INFORMATION</div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-12 col-md-3">
+          <div class="portrait-box d-flex align-items-center justify-content-center">
+            <img id="portraitImg" class="img-fluid rounded" alt="Portrait">
+            <span id="portraitPlaceholder" class="text-muted">Portrait</span>
+          </div>
+        </div>
+        <div class="col-12 col-md-9">
+          <div class="row g-2" id="fingerGrid">
+            <!-- 10 fingerprint tiles will be injected here -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ESB Transaction Logs (Latest) -->
+  <div class="card section-card mb-3">
+    <div class="card-header fw-bold">ESB Transaction Logs (Latest)</div>
+    <div class="card-body">
+      <table id="esbTable" class="table table-dark table-striped table-bordered w-100">
+        <thead class="table-success">
+          <tr>
+            <th>TransactionID</th>
+            <th>CandidateID</th>
+            <th>AppID</th>
+            <th>ReqClient</th>
+            <th>Provider</th>
+            <th>RespCode</th>
+            <th>RespMessage</th>
+            <th>Start</th>
+            <th>End</th>
+          </tr>
+        </thead>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Local JS -->
+<script th:src="@{/js/jquery-3.7.1.min.js}"></script>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/dataTables.dataTables.min.js}"></script>
+<script th:src="@{/js/dataTables.bootstrap5.min.js}"></script>
+
+<script>
+let esbDT = null;
+
+function initDataTables(){
+  // ESB DataTable (AJAX POST to /api/esb with idnOrPcn)
+  if(!esbDT){
+    esbDT = $('#esbTable').DataTable({
+      ajax: {
+        url: '/api/esb',
+        type: 'POST',
+        contentType: 'application/json',
+        data: function(d){
+          return JSON.stringify({idnOrPcn: $('#idnInput').val().trim()});
+        },
+        dataSrc: '' // ESB endpoint returns an array, not wrapped
+      },
+      pageLength: 10, searching: true, lengthMenu: [10,25,50,100],
+      columns: [
+        {data:'TransactionID'},
+        {data:'CandidateID'},
+        {data:'AppID'},
+        {data:'ReqClient'},
+        {data:'ProviderName'},
+        {data:'RespCode'},
+        {data:'RespMessage'},
+        {
+          data:'GlobalStartTime',
+          render: function(data){ return data ? data.replace('T',' ').substring(0,19) : ''; }
+        },
+        {
+          data:'GlobalEndTime',
+          render: function(data){ return data ? data.replace('T',' ').substring(0,19) : ''; }
+        }
+      ]
+    });
+  } else {
+    esbDT.ajax.reload();
+  }
+}
+
+function renderPerson(p){
+  // Demographic rows
+  const $tbody = $('#demoTable tbody').empty();
+  if (p.demo && p.demo.length) {
+    p.demo.forEach(r => {
+      $tbody.append(`
+        <tr>
+          <td>${r.type || ''}</td>
+          <td>${r.idnOrPcn || ''}</td>
+          <td>${r.tcn || ''}</td>
+          <td>${r.registrationId || ''}</td>
+          <td>${r.batchNumber || ''}</td>
+          <td>${r.formNumber || ''}</td>
+          <td>${r.inactive || ''}</td>
+          <td>${r.blocked || ''}</td>
+          <td>${r.dead || ''}</td>
+          <td>${r.dateCreated || ''}</td>
+          <td>${r.personCreateDate || ''}</td>
+          <td>${r.dateLastModified || ''}</td>
+        </tr>
+      `);
+    });
+  } else {
+    $tbody.append('<tr><td colspan="12" class="text-center text-muted">No demographic rows</td></tr>');
+  }
+
+  // Portrait
+  if(p.portraitBase64){
+    $('#portraitImg').attr('src','data:image/png;base64,'+p.portraitBase64).show();
+    $('#portraitPlaceholder').hide();
+  } else {
+    $('#portraitImg').hide();
+    $('#portraitPlaceholder').show();
+  }
+
+  // Fingerprints: enforce 5 per row
+  const fps = (p.fingerprintsBase64 || []);
+  const grid = $('#fingerGrid').empty();
+  for (let i = 0; i < 10; i++) {
+    if (i % 5 === 0) {
+      grid.append('<div class="row g-2 fingerprint-row"></div>');
+    }
+    const row = grid.find('.fingerprint-row').last();
+    const b64 = fps[i];
+    const html = `
+      <div class="col-6 col-md-2 d-flex">
+        <div class="fp-box flex-fill d-flex align-items-center justify-content-center">
+          ${b64 
+            ? `<img src="data:image/png;base64,${b64}" class="img-fluid">`
+            : `<span class="text-muted">fingerprint f${i+1}</span>`}
+        </div>
+      </div>`;
+    row.append(html);
+  }
+}
+
+$('#searchForm').on('submit', function(e){
+  e.preventDefault();
+  const id = $('#idnInput').val().trim();
+  if(!id) return;
+  $.ajax({
+    url:'/api/person', method:'POST', contentType:'application/json',
+    data: JSON.stringify({idnOrPcn: id}),
+    success: function(p){ renderPerson(p); initDataTables(); },
+    error: function(){ alert('Failed to fetch person'); }
+  });
+  initDataTables();
+});
+</script>
+</body>
+</html>

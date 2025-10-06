@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>DHA Admin Tool - Mr Romantic</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/darkly/bootstrap.min.css">
-  <link rel="stylesheet" href="https://cdn.datatables.net/v/bs5/dt-2.1.8/datatables.min.css"/>
+  <link rel="stylesheet" th:href="@{css/bootstrap-darkly.min.css}">
+  <link rel="stylesheet" th:href="@{css/datatables.min.css}"/>
   <style>
     .section-card .card-header{background:#2a9d8f;color:#fff}
     .portrait-box{min-height:260px;background:#111;border:1px solid #2b2b2b;border-radius:.5rem}
@@ -26,9 +26,6 @@
     <div class="card-body p-0">
       <div class="table-responsive">
         <table id="demoTable" class="table table-dark table-striped table-bordered m-0 align-middle">
-          <!--thead class="table-success">
-            <tr><th style="width:120px">Type</th><th>IDN / PCN</th><th style="width:180px">Form Number</th></tr>
-          </thead-->
 		  <thead class="table-success">
 		    <tr>
 		      <th>Type</th>
@@ -71,16 +68,6 @@
     </div>
   </div>
 
-  <!-- WORKFLOW INFORMATION -->
-  <!--div class="card section-card mb-3">
-    <div class="card-header fw-bold">WORKFLOW INFORMATION</div>
-    <div class="card-body">
-      <table id="workflowTable" class="table table-dark table-striped table-bordered w-100">
-        <thead class="table-success"><tr><th>Title 1</th><th>Title 2</th><th>Title 3</th></tr></thead>
-      </table>
-    </div>
-  </div-->
-
   <!-- ESB Transaction Logs (Latest) -->
   <div class="card section-card mb-3">
     <div class="card-header fw-bold">ESB Transaction Logs (Latest)</div>
@@ -98,13 +85,15 @@
   </div>
 </div>
 
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-<script src="https://cdn.datatables.net/v/bs5/dt-2.1.8/datatables.min.js"></script>
+<script th:src="@{js/jquery-3.7.1.min.js}"></script>
+<script th:src="@{js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{js/dataTables.dataTables.min.js}"></script>
+<script th:src="@{js/datatables.min.js}"></script>
 <script>
 let workflowDT=null, esbDT=null;
 
 function initDataTables(){
-  // Workflow DataTable (client-side, fed from the person JSON)
+  // Workflow DataTable
   if(!workflowDT){
     workflowDT = $('#workflowTable').DataTable({
       data: [], pageLength: 10, searching: true, lengthMenu: [10,25,50,100],
@@ -113,17 +102,17 @@ function initDataTables(){
     });
   }
 
-  // ESB DataTable (AJAX POST to /api/esb with idnOrPcn)
+  // ESB DataTable
   if(!esbDT){
     esbDT = $('#esbTable').DataTable({
       ajax: {
-        url: '/api/esb',
+        url: 'api/esb',
         type: 'POST',
         contentType: 'application/json',
         data: function(d){
           return JSON.stringify({idnOrPcn: $('#idnInput').val().trim()});
         },
-        dataSrc: '' // ESB endpoint returns an array, not wrapped
+        dataSrc: ''
       },
       pageLength: 10, searching: true, lengthMenu: [10,25,50,100],
       columns: [
@@ -136,18 +125,11 @@ function initDataTables(){
         {data:'RespMessage'},
         {
           data:'GlobalStartTime',
-          render: function(data){
-            if(!data) return '';
-            // From "2025-09-18T22:31:41.777+00:00" → "2025-09-18 22:31:41"
-            return data.replace('T',' ').substring(0,19);
-          }
+          render: function(data){ return data ? data.replace('T',' ').substring(0,19) : ''; }
         },
         {
           data:'GlobalEndTime',
-          render: function(data){
-            if(!data) return '';
-            return data.replace('T',' ').substring(0,19);
-          }
+          render: function(data){ return data ? data.replace('T',' ').substring(0,19) : ''; }
         }
       ]
     });
@@ -156,18 +138,7 @@ function initDataTables(){
   }
 }
 
-
 function renderPerson(p){
-  // Demographic rows
-  /**const $tbody = $('#demoTable tbody').empty();
-  if(p.demo && p.demo.length){
-    p.demo.forEach(r=>{
-      $tbody.append(`<tr><td>${r.type||''}</td><td>${r.idnOrPcn||''}</td><td>${r.formNumber||''}</td></tr>`);
-    });
-  } else {
-    $tbody.append('<tr><td colspan="3" class="text-center text-muted">No demographic rows (demo tag missing)</td></tr>');
-  }*/
-  // Demographic rows
   const $tbody = $('#demoTable tbody').empty();
   if (p.demo && p.demo.length) {
     p.demo.forEach(r => {
@@ -192,7 +163,6 @@ function renderPerson(p){
     $tbody.append('<tr><td colspan="12" class="text-center text-muted">No demographic rows</td></tr>');
   }
 
-
   // Portrait
   if(p.portraitBase64){
     $('#portraitImg').attr('src','data:image/png;base64,'+p.portraitBase64).show();
@@ -202,24 +172,20 @@ function renderPerson(p){
     $('#portraitPlaceholder').show();
   }
 
-  // Fingerprints: enforce 5 per row
+  // Fingerprints: 5 per row
   const fps = (p.fingerprintsBase64 || []);
   const grid = $('#fingerGrid').empty();
   for (let i = 0; i < 10; i++) {
-    if (i % 5 === 0) {
-      grid.append('<div class="row g-2 fingerprint-row"></div>');
-    }
+    if (i % 5 === 0) grid.append('<div class="row g-2 fingerprint-row"></div>');
     const row = grid.find('.fingerprint-row').last();
     const b64 = fps[i];
-    const html = `
+    row.append(`
       <div class="col-6 col-md-2 d-flex">
         <div class="fp-box flex-fill d-flex align-items-center justify-content-center">
-          ${b64 
-            ? `<img src="data:image/png;base64,${b64}" class="img-fluid">`
-            : `<span class="text-muted">fingerprint f${i+1}</span>`}
+          ${b64 ? `<img src="data:image/png;base64,${b64}" class="img-fluid">` : `<span class="text-muted">fingerprint f${i+1}</span>`}
         </div>
-      </div>`;
-    row.append(html);
+      </div>
+    `);
   }
 
   // Workflow
@@ -231,14 +197,12 @@ $('#searchForm').on('submit', function(e){
   e.preventDefault();
   const id = $('#idnInput').val().trim();
   if(!id) return;
-  // Fetch person (POST /api/person) then render
   $.ajax({
-    url:'/api/person', method:'POST', contentType:'application/json',
+    url:'api/person', method:'POST', contentType:'application/json',
     data: JSON.stringify({idnOrPcn: id}),
     success: function(p){ renderPerson(p); initDataTables(); },
     error: function(){ alert('Failed to fetch person'); }
   });
-  // Reload ESB table (init or refresh)
   initDataTables();
 });
 </script>
