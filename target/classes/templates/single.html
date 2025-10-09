@@ -4,19 +4,29 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>DHA Admin Tool - Mr Romantic</title>
+
   <link rel="stylesheet" th:href="@{css/bootstrap-darkly.min.css}">
   <link rel="stylesheet" th:href="@{css/datatables.min.css}"/>
+
   <style>
-    .section-card .card-header{background:#2a9d8f;color:#fff}
-    .portrait-box{min-height:260px;background:#111;border:1px solid #2b2b2b;border-radius:.5rem}
-    .fp-box{height:110px;background:#111;border:1px solid #2b2b2b;border-radius:.5rem}
+    .section-card .card-header { background:#2a9d8f; color:#fff }
+    .portrait-box { min-height:260px; background:#111; border:1px solid #2b2b2b; border-radius:.5rem }
+    .fp-box { height:110px; background:#111; border:1px solid #2b2b2b; border-radius:.5rem }
+    pre.xml-viewer {
+      background:#000; color:#0f0; padding:1rem;
+      white-space:pre-wrap; word-break:break-word;
+      border-radius:.5rem; max-height:70vh; overflow:auto; font-family:monospace
+    }
   </style>
 </head>
+
 <body>
 <div class="container py-3">
-  <!-- Search row -->
+  <!-- Search -->
   <form id="searchForm" class="row gy-2 gx-2 mb-3">
-    <div class="col-auto"><input id="idnInput" name="idnOrPcn" class="form-control" placeholder="ID / PCN / Form" required></div>
+    <div class="col-auto">
+      <input id="idnInput" name="idnOrPcn" class="form-control" placeholder="ID / PCN / Form" required>
+    </div>
     <div class="col-auto"><button class="btn btn-primary" type="submit">Search</button></div>
   </form>
 
@@ -26,29 +36,20 @@
     <div class="card-body p-0">
       <div class="table-responsive">
         <table id="demoTable" class="table table-dark table-striped table-bordered m-0 align-middle">
-		  <thead class="table-success">
-		    <tr>
-		      <th>Type</th>
-		      <th>IDN / PCN</th>
-		      <th>TCN</th>
-		      <th>Registration ID</th>
-		      <th>Batch Number</th>
-		      <th>Form Number</th>
-		      <th>Inactive</th>
-		      <th>Blocked</th>
-		      <th>Dead</th>
-		      <th>Date Created</th>
-		      <th>Person Create Date</th>
-		      <th>Date Last Modified</th>
-		    </tr>
-		  </thead>
+          <thead class="table-success">
+            <tr>
+              <th>Type</th><th>IDN / PCN</th><th>TCN</th><th>Registration ID</th>
+              <th>Batch Number</th><th>Form Number</th><th>Inactive</th><th>Blocked</th>
+              <th>Dead</th><th>Date Created</th><th>Person Create Date</th><th>Date Last Modified</th>
+            </tr>
+          </thead>
           <tbody></tbody>
         </table>
       </div>
     </div>
   </div>
 
-  <!-- BIOMETRIC INFORMATION -->
+  <!-- BIOMETRIC -->
   <div class="card section-card mb-3">
     <div class="card-header fw-bold">BIOMETRIC INFORMATION</div>
     <div class="card-body">
@@ -60,23 +61,22 @@
           </div>
         </div>
         <div class="col-12 col-md-9">
-          <div class="row g-2" id="fingerGrid">
-            <!-- 10 fingerprint tiles will be injected here -->
-          </div>
+          <div class="row g-2" id="fingerGrid"></div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ESB Transaction Logs (Latest) -->
+  <!-- ESB Transaction Logs -->
   <div class="card section-card mb-3">
     <div class="card-header fw-bold">ESB Transaction Logs (Latest)</div>
     <div class="card-body">
       <table id="esbTable" class="table table-dark table-striped table-bordered w-100">
         <thead class="table-success">
           <tr>
-            <th>TransactionID</th><th>CandidateID</th><th>AppID</th>
+            <th>TransactionID</th><!--th>CandidateID</th--><th>AppID</th>
             <th>ReqClient</th><th>Provider</th><th>RespCode</th><th>RespMessage</th>
+            <th>Request XML</th><th>Response XML</th>
             <th>Start</th><th>End</th>
           </tr>
         </thead>
@@ -85,52 +85,114 @@
   </div>
 </div>
 
+<!-- XML Modal -->
+<div class="modal fade" id="xmlModal" tabindex="-1" aria-labelledby="xmlModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header">
+        <h5 class="modal-title" id="xmlModalLabel">XML Viewer</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <pre id="xmlContent" class="xml-viewer"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
 <script th:src="@{js/jquery-3.7.1.min.js}"></script>
 <script th:src="@{js/bootstrap.bundle.min.js}"></script>
-<script th:src="@{js/dataTables.dataTables.min.js}"></script>
 <script th:src="@{js/datatables.min.js}"></script>
+
 <script>
-let workflowDT=null, esbDT=null;
+let workflowDT = null, esbDT = null;
 
-function initDataTables(){
-  // Workflow DataTable
-  if(!workflowDT){
-    workflowDT = $('#workflowTable').DataTable({
-      data: [], pageLength: 10, searching: true, lengthMenu: [10,25,50,100],
-      columns: [{data:'title1'},{data:'title2'},{data:'title3'}],
-      language:{emptyTable:'No workflow rows'}
-    });
-  }
+// cache only keys; never put XML into the table
+const xmlCache = Object.create(null);
 
-  // ESB DataTable
-  if(!esbDT){
+// --- XML pretty-print + simple highlight ---
+function formatXml(xml) {
+  if (!xml) return '';
+  // escape then indent
+  xml = xml.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  let formatted = '', pad = 0;
+  xml.split(/&gt;\s*&lt;/).forEach(node => {
+    if (node.match(/^\/\w/)) pad--;
+    formatted += ' '.repeat(pad * 2) + '&lt;' + node + '&gt;\n';
+    if (node.match(/^<?\w[^>]*[^\/]$/) && !node.startsWith('?') && !node.endsWith('/')) pad++;
+  });
+  return formatted.trim();
+}
+
+function highlightXml(xml) {
+  if (!xml) return '<span class="text-muted">No XML content</span>';
+  const f = formatXml(xml);
+  return f
+    .replace(/(&lt;!--[\s\S]*?--&gt;)/g, '<span class="text-success">$1</span>')            // comments
+    .replace(/(&lt;\/?)([A-Za-z_:\-][\w:.\-]*)/g, '$1<span class="text-info">$2</span>')   // tag names
+    .replace(/([A-Za-z_:\-][\w:.\-]*)=(&quot;[^&]*&quot;)/g, '<span class="text-warning">$1</span>=<span class="text-danger">$2</span>'); // attrs
+}
+
+function showXmlDialog(title, xml) {
+  $('#xmlModalLabel').text(title);
+  $('#xmlContent').html(highlightXml(xml));
+  new bootstrap.Modal(document.getElementById('xmlModal')).show();
+}
+
+// Delegate clicks for all “View” buttons
+$(document).on('click', '.btn-view-xml', function () {
+  const key = this.dataset.xmlKey;
+  const title = this.dataset.title || 'XML';
+  showXmlDialog(title, xmlCache[key] || '');
+});
+
+// --- ESB table ---
+function initDataTables() {
+  if (!esbDT) {
     esbDT = $('#esbTable').DataTable({
       ajax: {
         url: 'api/esb',
         type: 'POST',
         contentType: 'application/json',
-        data: function(d){
-          return JSON.stringify({idnOrPcn: $('#idnInput').val().trim()});
-        },
+        data: d => JSON.stringify({ idnOrPcn: $('#idnInput').val().trim() }),
         dataSrc: ''
       },
-      pageLength: 10, searching: true, lengthMenu: [10,25,50,100],
+      pageLength: 10,
+      searching: true,
+      lengthMenu: [10, 25, 50, 100],
       columns: [
-        {data:'TransactionID'},
-        {data:'CandidateID'},
-        {data:'AppID'},
-        {data:'ReqClient'},
-        {data:'ProviderName'},
-        {data:'RespCode'},
-        {data:'RespMessage'},
+        { data: 'TransactionID' },
+        //{ data: 'CandidateID' },
+        { data: 'AppID' },
+        { data: 'ReqClient' },
+        { data: 'ProviderName' },
+        { data: 'RespCode' },
+        { data: 'RespMessage' },
         {
-          data:'GlobalStartTime',
-          render: function(data){ return data ? data.replace('T',' ').substring(0,19) : ''; }
+          data: 'ReqData',
+          render: function (data, type, row, meta) {
+            if (type !== 'display') return ''; // no raw XML in sort/search
+            if (!data) return '<span class="text-muted">-</span>';
+            const key = `req_${row.TransactionID}_${meta.row}`;
+            xmlCache[key] = data;
+            return `<button type="button" class="btn btn-sm btn-outline-info btn-view-xml"
+                      data-xml-key="${key}" data-title="Request XML">👁 View</button>`;
+          }
         },
         {
-          data:'GlobalEndTime',
-          render: function(data){ return data ? data.replace('T',' ').substring(0,19) : ''; }
-        }
+          data: 'RespData',
+          render: function (data, type, row, meta) {
+            if (type !== 'display') return '';
+            if (!data) return '<span class="text-muted">-</span>';
+            const key = `resp_${row.TransactionID}_${meta.row}`;
+            xmlCache[key] = data;
+            return `<button type="button" class="btn btn-sm btn-outline-success btn-view-xml"
+                      data-xml-key="${key}" data-title="Response XML">👁 View</button>`;
+          }
+        },
+        { data: 'GlobalStartTime', render: d => d ? d.replace('T', ' ').substring(0, 19) : '' },
+        { data: 'GlobalEndTime',   render: d => d ? d.replace('T', ' ').substring(0, 19) : '' }
       ]
     });
   } else {
@@ -138,68 +200,49 @@ function initDataTables(){
   }
 }
 
-function renderPerson(p){
+// --- Demographic + biometrics rendering (unchanged) ---
+function renderPerson(p) {
   const $tbody = $('#demoTable tbody').empty();
   if (p.demo && p.demo.length) {
     p.demo.forEach(r => {
       $tbody.append(`
         <tr>
-          <td>${r.type || ''}</td>
-          <td>${r.idnOrPcn || ''}</td>
-          <td>${r.tcn || ''}</td>
-          <td>${r.registrationId || ''}</td>
-          <td>${r.batchNumber || ''}</td>
-          <td>${r.formNumber || ''}</td>
-          <td>${r.inactive || ''}</td>
-          <td>${r.blocked || ''}</td>
-          <td>${r.dead || ''}</td>
-          <td>${r.dateCreated || ''}</td>
-          <td>${r.personCreateDate || ''}</td>
-          <td>${r.dateLastModified || ''}</td>
-        </tr>
-      `);
+          <td>${r.type||''}</td><td>${r.idnOrPcn||''}</td><td>${r.tcn||''}</td>
+          <td>${r.registrationId||''}</td><td>${r.batchNumber||''}</td><td>${r.formNumber||''}</td>
+          <td>${r.inactive||''}</td><td>${r.blocked||''}</td><td>${r.dead||''}</td>
+          <td>${r.dateCreated||''}</td><td>${r.personCreateDate||''}</td><td>${r.dateLastModified||''}</td>
+        </tr>`);
     });
   } else {
     $tbody.append('<tr><td colspan="12" class="text-center text-muted">No demographic rows</td></tr>');
   }
 
-  // Portrait
-  if(p.portraitBase64){
+  if (p.portraitBase64) {
     $('#portraitImg').attr('src','data:image/png;base64,'+p.portraitBase64).show();
     $('#portraitPlaceholder').hide();
-  } else {
-    $('#portraitImg').hide();
-    $('#portraitPlaceholder').show();
-  }
+  } else { $('#portraitImg').hide(); $('#portraitPlaceholder').show(); }
 
-  // Fingerprints: 5 per row
-  const fps = (p.fingerprintsBase64 || []);
+  const fps = (p.fingerprintsBase64||[]);
   const grid = $('#fingerGrid').empty();
-  for (let i = 0; i < 10; i++) {
-    if (i % 5 === 0) grid.append('<div class="row g-2 fingerprint-row"></div>');
+  for (let i=0;i<10;i++) {
+    if (i%5===0) grid.append('<div class="row g-2 fingerprint-row"></div>');
     const row = grid.find('.fingerprint-row').last();
     const b64 = fps[i];
-    row.append(`
-      <div class="col-6 col-md-2 d-flex">
-        <div class="fp-box flex-fill d-flex align-items-center justify-content-center">
-          ${b64 ? `<img src="data:image/png;base64,${b64}" class="img-fluid">` : `<span class="text-muted">fingerprint f${i+1}</span>`}
-        </div>
-      </div>
-    `);
+    row.append(`<div class="col-6 col-md-2 d-flex">
+      <div class="fp-box flex-fill d-flex align-items-center justify-content-center">
+        ${b64 ? `<img src="data:image/png;base64,${b64}" class="img-fluid">`
+               : `<span class="text-muted">finger f${i+1}</span>`}
+      </div></div>`);
   }
-
-  // Workflow
-  const wf = (p.workflow||[]);
-  workflowDT.clear().rows.add(wf).draw();
 }
 
+// --- Search submit ---
 $('#searchForm').on('submit', function(e){
   e.preventDefault();
-  const id = $('#idnInput').val().trim();
-  if(!id) return;
+  const id = $('#idnInput').val().trim(); if(!id) return;
   $.ajax({
     url:'api/person', method:'POST', contentType:'application/json',
-    data: JSON.stringify({idnOrPcn: id}),
+    data: JSON.stringify({idnOrPcn:id}),
     success: function(p){ renderPerson(p); initDataTables(); },
     error: function(){ alert('Failed to fetch person'); }
   });

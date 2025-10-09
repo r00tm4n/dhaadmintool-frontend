@@ -29,6 +29,30 @@ public class EsbRow {
 
 	@JsonProperty("GlobalEndTime")
 	private String globalEndTime;
+	
+	@JsonProperty("RespData")
+	private String respData;
+	
+	@JsonProperty("ReqData")
+	private String reqData;
+
+	
+	
+	public String getRespData() {
+		return respData;
+	}
+
+	public void setRespData(String respData) {
+		this.respData = respData;
+	}
+
+	public String getReqData() {
+		return reqData;
+	}
+
+	public void setReqData(String reqData) {
+		this.reqData = reqData;
+	}
 
 	public String getTransactionID() {
 		return transactionId;
