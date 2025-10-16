@@ -4,7 +4,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>idemia.ci.msa.dha.dhaadmintool</groupId>
   <artifactId>person-esb-singlepage</artifactId>
-  <version>1.0.2-SNAPSHOT</version>
+  <version>1.0.3-SNAPSHOT</version>
   <name>dhaadmintool-frontend</name>
   <parent>
     <groupId>org.springframework.boot</groupId>

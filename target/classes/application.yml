@@ -4,6 +4,7 @@ server:
 apis:
   # External endpoints you provided
   personUrl: "http://localhost:8080/ads/getperson/"
+  personArchiveUrl: "http://localhost:8080/ads/getpersonarchive/"
   esbUrl: "http://localhost:8080/esb/byidn/"
 
 #Fix error org.springframework.core.io.buffer.DataBufferLimitException: Exceeded limit on max bytes to buffer : 262144

@@ -4,6 +4,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 import idemia.ci.msa.dha.dhaadmintool.spa.model.EsbRow;
+import idemia.ci.msa.dha.dhaadmintool.spa.model.PersonArchiveResponse;
 import idemia.ci.msa.dha.dhaadmintool.spa.model.PersonResponse;
 import idemia.ci.msa.dha.dhaadmintool.spa.service.ExternalApiClient;
 import reactor.core.publisher.Mono;
@@ -23,15 +24,19 @@ public class UiController {
 		return "single";
 	}
 
-	// AJAX proxy endpoints (POST idnOrPcn) to match your contract
 	@PostMapping("/api/person")
 	@ResponseBody
 	public Mono<PersonResponse> person(@RequestBody Map<String, String> body) {
-//		String id = body.getOrDefault("idnOrPcn", "");
-//		return api.fetchPerson(id);
 		return api.fetchPerson(body.get("idnOrPcn"));
 	}
 
+	@PostMapping("/api/personarchive")
+	@ResponseBody
+	public Flux<PersonArchiveResponse> personArchive(@RequestBody Map<String, String> body) {
+		return api.fetchPersonArchive(body.get("idnOrPcn"));
+	}
+
+	
 	@PostMapping("/api/esb")
 	@ResponseBody
 	public Flux<EsbRow> esb(@RequestBody Map<String, String> body) {

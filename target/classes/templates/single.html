@@ -38,7 +38,7 @@
         <table id="demoTable" class="table table-dark table-striped table-bordered m-0 align-middle">
           <thead class="table-success">
             <tr>
-              <th>Type</th><th>IDN / PCN</th><th>TCN</th><th>Registration ID</th>
+              <th>Type</th><th>IDN / PCN</th><th>TCN</th>
               <th>Batch Number</th><th>Form Number</th><th>Inactive</th><th>Blocked</th>
               <th>Dead</th><th>Date Created</th><th>Person Create Date</th><th>Date Last Modified</th>
             </tr>
@@ -48,6 +48,25 @@
       </div>
     </div>
   </div>
+  
+  
+  <!-- ARCHIVE HISTORY -->
+   <div class="card section-card mb-3">
+     <div class="card-header fw-bold">ARCHIVE HISTORY</div>
+     <div class="card-body p-0">
+       <div class="table-responsive">
+         <table id="archiveTable" class="table table-dark table-striped table-bordered m-0 align-middle">
+           <thead class="table-success">
+             <tr>
+               <th>Type</th><th>IDN</th><th>PCN</th><th>PIN</th><th>TCN</th><th>Batch</th><th>Form</th>
+               <th>Date</th><th>File</th>
+             </tr>
+           </thead>
+           <tbody></tbody>
+         </table>
+       </div>
+     </div>
+   </div>
 
   <!-- BIOMETRIC -->
   <div class="card section-card mb-3">
@@ -208,7 +227,7 @@ function renderPerson(p) {
       $tbody.append(`
         <tr>
           <td>${r.type||''}</td><td>${r.idnOrPcn||''}</td><td>${r.tcn||''}</td>
-          <td>${r.registrationId||''}</td><td>${r.batchNumber||''}</td><td>${r.formNumber||''}</td>
+          <td>${r.batchNumber||''}</td><td>${r.formNumber||''}</td>
           <td>${r.inactive||''}</td><td>${r.blocked||''}</td><td>${r.dead||''}</td>
           <td>${r.dateCreated||''}</td><td>${r.personCreateDate||''}</td><td>${r.dateLastModified||''}</td>
         </tr>`);
@@ -236,6 +255,44 @@ function renderPerson(p) {
   }
 }
 
+function initArchiveTable(idn) {
+  if ($.fn.DataTable.isDataTable('#archiveTable')) {
+    $('#archiveTable').DataTable().destroy();
+  }
+  $('#archiveTable').DataTable({
+    ajax: {
+      url: 'api/personarchive',
+      type: 'POST',
+      contentType: 'application/json',
+      data: () => JSON.stringify({ idnOrPcn: idn }),
+      dataSrc: ''
+    },
+    pageLength: 10,
+    columns: [
+      { data: 'record_type' },
+      { data: 'ras_idn' },
+      { data: 'ras_pcn' },
+      { data: 'ras_pin' },
+      { data: 'ras_tcn' },
+      { data: 'ras_batchnumber' },
+      { data: 'ras_formnumber' },
+      { data: 'date_created' },
+      { 
+        data: 'filename',
+        render: function (data, type, row) {
+          if (!row.nist) return `<span class="text-muted">${data || '-'}</span>`;
+          return `
+            <a href="data:application/octet-stream;base64,${row.nist}"
+               download="${data}" class="btn btn-sm btn-outline-success">
+               ⬇ Download
+            </a>`;
+        }
+      }
+    ]
+  });
+}
+
+
 // --- Search submit ---
 $('#searchForm').on('submit', function(e){
   e.preventDefault();
@@ -243,7 +300,7 @@ $('#searchForm').on('submit', function(e){
   $.ajax({
     url:'api/person', method:'POST', contentType:'application/json',
     data: JSON.stringify({idnOrPcn:id}),
-    success: function(p){ renderPerson(p); initDataTables(); },
+    success: function(p){ renderPerson(p);initArchiveTable(id); initDataTables(); },
     error: function(){ alert('Failed to fetch person'); }
   });
   initDataTables();
